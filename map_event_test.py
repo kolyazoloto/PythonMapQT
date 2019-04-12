@@ -17,7 +17,7 @@ class Map(QWidget):
 
     def __init__(self,array):
         super().__init__()
-        self.array = array
+        self.mapArray = array
         self.findPathArray = []
         self.initUI()
 
@@ -28,12 +28,14 @@ class Map(QWidget):
 
     def mousePressEvent(self, QMouseEvent):
         self.mousePos = QMouseEvent.pos()
-        x = self.mousePos.x() - self.width_ot  # Так как начинаем не от начала, то подправляем координаты
-        y = self.mousePos.y() - self.height_ot
+        x = self.mousePos.x()
+        y = self.mousePos.y()
+
         ############################################
-        x /= self.rectangleWidth      # Находим нужный кубикя
-        x = int(np.floor(x))
+        x /= self.rectangleWidth      # Находим нужный кубикя rjординаты
         y /= self.rectangleHeight
+
+        x = int(np.floor(x))
         y = int(np.floor(y))
 
         strItem = str(x)+','+str(y) #Делаем строку
@@ -54,16 +56,14 @@ class Map(QWidget):
         pen.setStyle(1)     #no lines
         qp.setPen(pen)
 
-        array = self.array
+        array = self.mapArray
         size = self.size()
-        self.width_ot = size.width()/100
-        self.height_ot = size.height()/100
         self.row_items = len(array[0])   #Длина ряда
         self.colomn_items = len(array)   #Длина колонны
-        self.rectangleWidth = (size.width()-(self.width_ot*2))/self.row_items
-        self.rectangleHeight = (size.height()-(self.height_ot*2))/self.colomn_items
-        start = self.width_ot
-        startPoint = [self.width_ot,self.height_ot]
+        self.rectangleWidth = (size.width())/self.row_items
+        self.rectangleHeight = (size.height())/self.colomn_items
+        start = 0
+        startPoint = [0,0]
 
         for k in range(self.colomn_items):
             for i in range(self.row_items):          #Рисуем прямоугольники                if array[k][i] == 0:
@@ -73,15 +73,14 @@ class Map(QWidget):
                 if array[k][i] == 0:
                     qp.setBrush(QColor(0,0,0))
                     qp.setPen(QColor(0,0,0))
-                if array[k][i] == 1:
+
+                if array[k][i] == -5:
                     qp.setBrush(QColor(255,0,0))
                     qp.setPen(QColor(255, 0, 0))
-                '''if array[k][i] == -3:
-                    qp.setBrush(QColor(255,0,0))
-                    qp.setPen(QColor(255, 0, 0))
-                if array[k][i] == -2:
-                    qp.setBrush(QColor(0,255,0))
-                    qp.setPen(QColor(0, 255, 0))'''
+                if array[k][i] > 1:
+                    weight = array[k][i]
+                    qp.setBrush(QColor(255,255-weight,255-weight))
+                    qp.setPen(QColor(255,255-weight,255-weight))
 
                 if array[k][i] != 1:
                     qp.drawRect(startPoint[0],startPoint[1],self.rectangleWidth, self.rectangleHeight)
@@ -91,12 +90,12 @@ class Map(QWidget):
             startPoint[1] += self.rectangleHeight    #Увеличиваем координату высоты
 
 class MapWidget(QWidget):
-    def __init__(self,array):
+    def __init__(self,massive):
         super().__init__()
-        self.array = array # Используем для расчета
-        self.screenArray = array # Используем для отображения
-        self.map = Map(self.screenArray)
-        self.grid = Grid(matrix=self.array)  # eto tut koroche delaet kartu
+        self.array = massive.copy() # Используем для расчета
+        self.screenArray = massive.copy() # Используем для отображения
+        self.map = Map(self.array)
+        self.totalPath = []
         self.initUI()
     def initUI(self):
         self.setGeometry(300,300,1300,1000)
@@ -117,12 +116,17 @@ class MapWidget(QWidget):
         self.buttonClearArray.setText("Clear Array")
         self.buttonClearArray.clicked.connect(self.clearPathArrayCallback)
         ##
+        self.buttonTestGrad = QPushButton()
+        self.buttonTestGrad.setText("TEST GRAD")
+        self.buttonTestGrad.clicked.connect(self.makeGradTunnel)
+        ##
         self.list = QListView()
         self.list.setModel(self.map.listModel)
         vbox = QVBoxLayout()
         vbox.addWidget(self.list,stretch=50)
         vbox.addWidget(self.buttonFindPath,stretch=30)
         vbox.addWidget(self.buttonClearArray,stretch=30)
+        vbox.addWidget(self.buttonTestGrad, stretch=50)
         self.rightGroupBox = QGroupBox()
         self.rightGroupBox.setLayout(vbox)
     def leftSide(self):
@@ -133,28 +137,74 @@ class MapWidget(QWidget):
     def clearPathArrayCallback(self):
         self.map.findPathArray.clear()
         self.map.listModel.clear()
-        self.screenArray = self.array
+        self.totalPath.clear()
 
-    def findPath(self):
+    def findPath(self):    # Должна быть в Росе
         if len(self.map.findPathArray) >= 2:
             while len(self.map.findPathArray) > 1:
-                self.grid.cleanup()
-                startPoint = self.grid.node(self.map.findPathArray[0][0], self.map.findPathArray[0][1])
-                finishPoint = self.grid.node(self.map.findPathArray[1][0], self.map.findPathArray[1][1])
-                finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
-                path, run = finder.find_path(startPoint, finishPoint, self.grid)
+                grid = Grid(matrix=self.array)  # eto tut koroche delaet kartuself.grid = Grid(matrix=self.array)  # eto tut koroche delaet kartu
+                grid.cleanup()
+                startPoint = grid.node(self.map.findPathArray[0][0], self.map.findPathArray[0][1])
+                finishPoint = grid.node(self.map.findPathArray[1][0], self.map.findPathArray[1][1])
+                finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
+                self.path, run = finder.find_path(startPoint, finishPoint, grid)
 
-                print(path)
+                print(self.path)
                 print(run)
                 #int_mapmap[startPoint[0]][startPoint[1]] = -2 #вносим старт так как не было       -2 - начало
-                for elem in path:         #вносим в массив путь,финиш не берем      -3 - конец
+                for elem in self.path:         #вносим в массив путь,финиш не берем      -3 - конец
                     self.screenArray[elem[1]][elem[0]] = -1   #  путь ..почему то столбики и стролбци наоборот
-                    if elem == finishPoint:       #
-                        self.screenArray[elem[0]][elem[1]] = -3
-                    if elem == startPoint:       #
-                        self.screenArray[elem[0]][elem[1]] = -2
-
-                #self.map.update()
                 self.map.findPathArray.pop(0)
                 self.map.listModel.removeRow(0)
+
+                self.totalPath.extend(self.path)
+            print(self.firstArray==self.screenArray)
             self.map.update()
+    def makeGradTunnel(self):
+
+        neighbour = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]
+        gridArray = self.totalPath.copy()
+
+        visitedArray = []
+        border = []
+
+        tunnelWidth = 10
+        weight = 20
+        weightStep = int((255-weight)/tunnelWidth)
+        #weightStep = 2
+        # сюда цикл на сколько то фигнь
+        for iter in range(tunnelWidth):
+            for i in gridArray:
+                for elem in neighbour:
+                    y = i[0] + elem[0]
+                    x = i[1] + elem[1]  # все перепутано икс и игрик для машины и человека это разное
+                    if x < 0 or y < 0 or x>(len(self.screenArray)-1) or y>(len(self.screenArray[0])-1):  # смотрим уходим ли за границу
+                        continue
+                    if self.screenArray[x][y] == -1 or self.screenArray[x][y] == 0: #смотрим препятствия и путь
+                        continue
+                    if [x,y] in visitedArray:     #смотрим посещали ли
+                        continue
+                    border.append([x,y])
+                    visitedArray.append([x,y])
+            for elem in border:        # раздаем веса
+                x = elem[0]
+                y = elem[1]
+                if iter == tunnelWidth-1:  # В последний раз ставим границу
+                    self.screenArray[x][y] = 0  # добавил только для отображения
+                    self.array[x][y] = 0
+                else:
+                    self.screenArray[x][y] = weight  # добавил только для отображения
+                    self.array[x][y] = weight
+
+            # Повторяю все напутано x и y почему то печаются на экран и в терминал по разному. Координаты границ инвертированы поэтому меняю. НАДО ПЕРЕДЕЛАТЬ
+            gridArray.clear()
+            weight += weightStep
+            for i in border:
+                gridArray.append(i[::-1])
+            border.clear()
+            ################
+        print(self.array == self.screenArray)
+        self.map.update()
+
+
+
