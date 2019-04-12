@@ -18,6 +18,7 @@ class Map(QWidget):
     def __init__(self,array):
         super().__init__()
         self.mapArray = array
+        self.path = []         #Отсюда начать
         self.findPathArray = []
         self.initUI()
 
@@ -164,8 +165,8 @@ class MapWidget(QWidget):
 
         tunnelWidth = 10
         weight = 20
-        weightStep = int((255-weight)/tunnelWidth)
-        #weightStep = 2
+        #weightStep = int((255-weight)/tunnelWidth)
+        weightStep = 2
         # сюда цикл на сколько то фигнь
         for iter in range(tunnelWidth):
             for i in gridArray:
