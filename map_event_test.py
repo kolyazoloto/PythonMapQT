@@ -73,7 +73,6 @@ class Map(QWidget):
                 if array[k][i] == 0:
                     qp.setBrush(QColor(0,0,0))
                     qp.setPen(QColor(0,0,0))
-
                 if array[k][i] == -5:
                     qp.setBrush(QColor(255,0,0))
                     qp.setPen(QColor(255, 0, 0))
@@ -81,7 +80,6 @@ class Map(QWidget):
                     weight = array[k][i]
                     qp.setBrush(QColor(255,255-weight,255-weight))
                     qp.setPen(QColor(255,255-weight,255-weight))
-
                 if array[k][i] != 1:
                     qp.drawRect(startPoint[0],startPoint[1],self.rectangleWidth, self.rectangleHeight)
                 startPoint[0] += self.rectangleWidth
@@ -92,9 +90,8 @@ class Map(QWidget):
 class MapWidget(QWidget):
     def __init__(self,massive):
         super().__init__()
-        self.array = massive.copy() # Используем для расчета
         self.screenArray = massive.copy() # Используем для отображения
-        self.map = Map(self.array)
+        self.map = Map(self.screenArray)
         self.totalPath = []
         self.initUI()
     def initUI(self):
@@ -142,23 +139,20 @@ class MapWidget(QWidget):
     def findPath(self):    # Должна быть в Росе
         if len(self.map.findPathArray) >= 2:
             while len(self.map.findPathArray) > 1:
-                grid = Grid(matrix=self.array)  # eto tut koroche delaet kartuself.grid = Grid(matrix=self.array)  # eto tut koroche delaet kartu
-                grid.cleanup()
+                grid = Grid(matrix=self.screenArray)  # eto tut koroche delaet kartu
                 startPoint = grid.node(self.map.findPathArray[0][0], self.map.findPathArray[0][1])
                 finishPoint = grid.node(self.map.findPathArray[1][0], self.map.findPathArray[1][1])
                 finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
-                self.path, run = finder.find_path(startPoint, finishPoint, grid)
+                path, run = finder.find_path(startPoint, finishPoint, grid)
 
-                print(self.path)
+                print(path)
                 print(run)
                 #int_mapmap[startPoint[0]][startPoint[1]] = -2 #вносим старт так как не было       -2 - начало
-                for elem in self.path:         #вносим в массив путь,финиш не берем      -3 - конец
+                for elem in path:         #вносим в массив путь,финиш не берем      -3 - конец
                     self.screenArray[elem[1]][elem[0]] = -1   #  путь ..почему то столбики и стролбци наоборот
                 self.map.findPathArray.pop(0)
                 self.map.listModel.removeRow(0)
-
-                self.totalPath.extend(self.path)
-            print(self.firstArray==self.screenArray)
+                self.totalPath.extend(path)
             self.map.update()
     def makeGradTunnel(self):
 
@@ -191,11 +185,8 @@ class MapWidget(QWidget):
                 y = elem[1]
                 if iter == tunnelWidth-1:  # В последний раз ставим границу
                     self.screenArray[x][y] = 0  # добавил только для отображения
-                    self.array[x][y] = 0
                 else:
                     self.screenArray[x][y] = weight  # добавил только для отображения
-                    self.array[x][y] = weight
-
             # Повторяю все напутано x и y почему то печаются на экран и в терминал по разному. Координаты границ инвертированы поэтому меняю. НАДО ПЕРЕДЕЛАТЬ
             gridArray.clear()
             weight += weightStep
@@ -203,7 +194,6 @@ class MapWidget(QWidget):
                 gridArray.append(i[::-1])
             border.clear()
             ################
-        print(self.array == self.screenArray)
         self.map.update()
 
 
