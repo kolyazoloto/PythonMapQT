@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys,numpy as np
-from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView
+from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QTextEdit
 from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem
 from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
@@ -20,6 +20,7 @@ class Map(QWidget):
         self.mapArray = array
         self.totalPath = []         #Отсюда начать
         self.findPathArray = []
+        self.pose = [25,25]
         self.initUI()
 
     def initUI(self):
@@ -42,8 +43,10 @@ class Map(QWidget):
         strItem = str(x)+','+str(y) #Делаем строку
         item = QStandardItem(strItem) # QItem
 
+
         self.listModel.appendRow(item)
         self.findPathArray.append([x,y])
+        print(self.findPathArray)
     def paintEvent(self, event):
 
         qp = QPainter()
@@ -75,10 +78,12 @@ class Map(QWidget):
                     qp.setBrush(QColor(255,255-weight,255-weight))
                     qp.setPen(QColor(255,255-weight,255-weight))
                 if (i,k) in self.totalPath:
-                    #print(self.totalPath)
                     qp.setBrush(QColor(0, 0, 255))
                     qp.setPen(QColor(0, 0, 255))
-                if array[k][i] != 1 or (i,k) in self.totalPath:
+                if [k,i] == self.pose:
+                    qp.setBrush(QColor(0, 255, 0))
+                    qp.setPen(QColor(0, 0, 0))
+                if array[k][i] != 1 or (i,k) in self.totalPath or [k,i] == self.pose: # Условие в каком случае строим кубик
                     qp.drawRect(startPoint[0],startPoint[1],self.rectangleWidth, self.rectangleHeight)
                 startPoint[0] += self.rectangleWidth
 
@@ -93,6 +98,7 @@ class MapWidget(QWidget):
         self.initUI()
     def initUI(self):
         self.setGeometry(300,300,1300,1000)
+        self.poseWID() ################
         self.rightSide()
         self.leftSide()
 
@@ -101,6 +107,36 @@ class MapWidget(QWidget):
         hbox.addWidget(self.rightGroupBox,stretch=20)
         self.setLayout(hbox)
         self.show()
+        self.posewid.show()  ##########
+    def poseWID(self):
+        def update_pose():
+            x = int(self.pose_x_lineEdit.text())
+            y = int(self.pose_y_lineEdit.text())
+            self.map.pose = [x,y]
+            self.map.update()
+            print(self.map.pose)
+
+        self.posewid = QWidget()
+        self.posewid.setGeometry(300,300,300,100)
+        self.posewid.setMinimumSize(300,100)
+        self.posewid.setMaximumSize(300,100)
+        lineedit_wid =  QWidget()
+        self.pose = [0,0]
+        self.pose_x_lineEdit = QLineEdit(lineedit_wid)
+        self.pose_y_lineEdit = QLineEdit(lineedit_wid)
+
+        self.button_apply_pose = QPushButton()
+        self.button_apply_pose.setText("Применить")
+        self.button_apply_pose.clicked.connect(update_pose)
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.pose_x_lineEdit)
+        hbox.addWidget(self.pose_y_lineEdit)
+        lineedit_wid.setLayout(hbox)
+
+        vbox = QVBoxLayout(self.posewid)
+        vbox.addWidget(lineedit_wid)
+        vbox.addWidget(self.button_apply_pose)
+
     def rightSide(self):
         self.buttonFindPath = QPushButton()
         self.buttonFindPath.setText("Find path")
@@ -132,9 +168,12 @@ class MapWidget(QWidget):
         self.map.findPathArray.clear()
         self.map.listModel.clear()
         self.map.totalPath.clear()
+        self.map.update()
 
     def findPath(self):    # Должна быть в Росе
-        if len(self.map.findPathArray) >= 2:
+        if len(self.map.findPathArray) >= 1:
+
+            self.map.findPathArray.insert(0,self.map.pose)
             while len(self.map.findPathArray) > 1:
                 grid = Grid(matrix=self.screenArray)  # eto tut koroche delaet kartu
                 startPoint = grid.node(self.map.findPathArray[0][0], self.map.findPathArray[0][1])
@@ -188,7 +227,7 @@ class MapWidget(QWidget):
             gridArray.clear()
             weight += weightStep
             for i in border:
-                gridArray.append(i[::-1])
+                gridArray.append(i[::-1])  # Нужно развернуть
             border.clear()
             ################
         self.map.update()
