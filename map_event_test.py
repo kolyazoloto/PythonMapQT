@@ -18,7 +18,7 @@ class Map(QWidget):
     def __init__(self,array):
         super().__init__()
         self.mapArray = array
-        self.path = []         #Отсюда начать
+        self.totalPath = []         #Отсюда начать
         self.findPathArray = []
         self.initUI()
 
@@ -44,7 +44,6 @@ class Map(QWidget):
 
         self.listModel.appendRow(item)
         self.findPathArray.append([x,y])
-        print(self.findPathArray)
     def paintEvent(self, event):
 
         qp = QPainter()
@@ -68,20 +67,18 @@ class Map(QWidget):
 
         for k in range(self.colomn_items):
             for i in range(self.row_items):          #Рисуем прямоугольники                if array[k][i] == 0:
-                if array[k][i] == -1:
-                    qp.setBrush(QColor(0, 0, 255))
-                    qp.setPen(QColor(0, 0, 255))
                 if array[k][i] == 0:
                     qp.setBrush(QColor(0,0,0))
                     qp.setPen(QColor(0,0,0))
-                if array[k][i] == -5:
-                    qp.setBrush(QColor(255,0,0))
-                    qp.setPen(QColor(255, 0, 0))
                 if array[k][i] > 1:
                     weight = array[k][i]
                     qp.setBrush(QColor(255,255-weight,255-weight))
                     qp.setPen(QColor(255,255-weight,255-weight))
-                if array[k][i] != 1:
+                if (i,k) in self.totalPath:
+                    #print(self.totalPath)
+                    qp.setBrush(QColor(0, 0, 255))
+                    qp.setPen(QColor(0, 0, 255))
+                if array[k][i] != 1 or (i,k) in self.totalPath:
                     qp.drawRect(startPoint[0],startPoint[1],self.rectangleWidth, self.rectangleHeight)
                 startPoint[0] += self.rectangleWidth
 
@@ -93,7 +90,6 @@ class MapWidget(QWidget):
         super().__init__()
         self.screenArray = massive.copy() # Используем для отображения
         self.map = Map(self.screenArray)
-        self.totalPath = []
         self.initUI()
     def initUI(self):
         self.setGeometry(300,300,1300,1000)
@@ -135,7 +131,7 @@ class MapWidget(QWidget):
     def clearPathArrayCallback(self):
         self.map.findPathArray.clear()
         self.map.listModel.clear()
-        self.totalPath.clear()
+        self.map.totalPath.clear()
 
     def findPath(self):    # Должна быть в Росе
         if len(self.map.findPathArray) >= 2:
@@ -145,27 +141,25 @@ class MapWidget(QWidget):
                 finishPoint = grid.node(self.map.findPathArray[1][0], self.map.findPathArray[1][1])
                 finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
                 path, run = finder.find_path(startPoint, finishPoint, grid)
-
-                print(path)
                 print(run)
                 #int_mapmap[startPoint[0]][startPoint[1]] = -2 #вносим старт так как не было       -2 - начало
-                for elem in path:         #вносим в массив путь,финиш не берем      -3 - конец
-                    self.screenArray[elem[1]][elem[0]] = -1   #  путь ..почему то столбики и стролбци наоборот
+                #for elem in path:         #вносим в массив путь,финиш не берем      -3 - конец
+                #   self.screenArray[elem[1]][elem[0]] = -1   #  путь ..почему то столбики и стролбци наоборот
                 self.map.findPathArray.pop(0)
                 self.map.listModel.removeRow(0)
-                self.totalPath.extend(path)
+                self.map.totalPath.extend(path)
             self.map.update()
     def makeGradTunnel(self):
 
         neighbour = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]
-        gridArray = self.totalPath.copy()
+        gridArray = self.map.totalPath.copy()
 
         visitedArray = []
         border = []
 
         tunnelWidth = 10
         weight = 20
-        #weightStep = int((255-weight)/tunnelWidth)
+        weightStep = int((255-weight)/tunnelWidth)
         weightStep = 2
         # сюда цикл на сколько то фигнь
         for iter in range(tunnelWidth):
@@ -175,9 +169,11 @@ class MapWidget(QWidget):
                     x = i[1] + elem[1]  # все перепутано икс и игрик для машины и человека это разное
                     if x < 0 or y < 0 or x>(len(self.screenArray)-1) or y>(len(self.screenArray[0])-1):  # смотрим уходим ли за границу
                         continue
-                    if self.screenArray[x][y] == -1 or self.screenArray[x][y] == 0: #смотрим препятствия и путь
+                    if self.screenArray[x][y] == 0: #смотрим препятствия и путь
                         continue
                     if [x,y] in visitedArray:     #смотрим посещали ли
+                        continue
+                    if [x,y] in self.map.totalPath:     #смотрим посещали ли
                         continue
                     border.append([x,y])
                     visitedArray.append([x,y])
