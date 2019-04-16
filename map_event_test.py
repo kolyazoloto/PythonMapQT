@@ -8,9 +8,6 @@ from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.finder.a_star import AStarFinder
 from pathfinding.finder.dijkstra import DijkstraFinder
-from PyQt5.QtCore import Qt
-import random
-
 
 
 class Map(QWidget):
@@ -18,7 +15,8 @@ class Map(QWidget):
     def __init__(self,array):
         super().__init__()
         self.mapArray = array
-        self.totalPath = []         #Отсюда начать
+        self.totalPath = []         #Глобальный путь
+        self.localPath = []
         self.findPathArray = []
         self.pose = [25,25]
         self.initUI()
@@ -43,9 +41,9 @@ class Map(QWidget):
         strItem = str(x)+','+str(y) #Делаем строку
         item = QStandardItem(strItem) # QItem
 
-
         self.listModel.appendRow(item)
         self.findPathArray.append([x,y])
+        self.update()
         print(self.findPathArray)
     def paintEvent(self, event):
 
@@ -80,10 +78,17 @@ class Map(QWidget):
                 if (i,k) in self.totalPath:
                     qp.setBrush(QColor(0, 0, 255))
                     qp.setPen(QColor(0, 0, 255))
-                if [k,i] == self.pose:
+                if [i,k] in self.findPathArray:
+                    qp.setBrush(QColor(255, 0, 0))
+                    qp.setPen(QColor(255, 0, 0))
+                if (i,k) in self.localPath:
+                    qp.setBrush(QColor(255, 255, 0))
+                    qp.setPen(QColor(255, 255, 0))
+                if [i,k] == self.pose:
                     qp.setBrush(QColor(0, 255, 0))
                     qp.setPen(QColor(0, 0, 0))
-                if array[k][i] != 1 or (i,k) in self.totalPath or [k,i] == self.pose: # Условие в каком случае строим кубик
+                if array[k][i] != 1 or (i,k) in self.totalPath or [i,k] == self.pose or [i,k] in self.findPathArray\
+                        or (i,k) in self.localPath: # Условие в каком случае строим кубик
                     qp.drawRect(startPoint[0],startPoint[1],self.rectangleWidth, self.rectangleHeight)
                 startPoint[0] += self.rectangleWidth
 
@@ -110,11 +115,32 @@ class MapWidget(QWidget):
         self.posewid.show()  ##########
     def poseWID(self):
         def update_pose():
-            x = int(self.pose_x_lineEdit.text())
-            y = int(self.pose_y_lineEdit.text())
-            self.map.pose = [x,y]
-            self.map.update()
+            y = int(self.pose_x_lineEdit.text())
+            x = int(self.pose_y_lineEdit.text())
+            recountLength = 10    # В настройки
+            prev_pose = self.map.pose
+            self.map.pose = [x, y]
             print(self.map.pose)
+            print(self.map.totalPath)
+            if (x, y) not in self.map.totalPath:    # Если мы не на пути включаем перерасчет
+                # включить перерасчет
+                ######################
+                print("ПЕРЕРАСЧЕТ")
+                self.recountPath(self.map.pose,self.map.totalPath[recountLength])  # переделать в возвращение функции
+                del(self.map.totalPath[:recountLength])    # удаляем из глобального пути все точки до N
+                self.map.totalPath = self.map.localPath + self.map.totalPath
+                self.map.localPath.clear()
+                ######################'''
+            if (x,y) in self.map.totalPath:
+                #определяем где мы в пути
+                ######################
+                print("НА ПУТИ")
+                del(self.map.totalPath[:self.map.totalPath.index((x,y))])  # Удаляем все элементы в массиве до нашего
+                #self.recountPath(self.map.pose,self.map.totalPath[10])
+                ######################'''
+            if self.map.pose != prev_pose:
+                self.map.update()
+
 
         self.posewid = QWidget()
         self.posewid.setGeometry(300,300,300,100)
@@ -138,6 +164,10 @@ class MapWidget(QWidget):
         vbox.addWidget(self.button_apply_pose)
 
     def rightSide(self):
+        #self.buttonRun = QPushButton()
+        #self.buttonRun.setText("ПОИХАЛI")
+        #self.buttonRun.clicked.connect(pass)
+        ##
         self.buttonFindPath = QPushButton()
         self.buttonFindPath.setText("Find path")
         self.buttonFindPath.clicked.connect(self.findPath)
@@ -154,6 +184,7 @@ class MapWidget(QWidget):
         self.list.setModel(self.map.listModel)
         vbox = QVBoxLayout()
         vbox.addWidget(self.list,stretch=50)
+        #vbox.addWidget(self.buttonRun, stretch=30)
         vbox.addWidget(self.buttonFindPath,stretch=30)
         vbox.addWidget(self.buttonClearArray,stretch=30)
         vbox.addWidget(self.buttonTestGrad, stretch=50)
@@ -188,6 +219,15 @@ class MapWidget(QWidget):
                 self.map.listModel.removeRow(0)
                 self.map.totalPath.extend(path)
             self.map.update()
+
+    def recountPath(self,start,finish):    # Должна быть в Росе
+        grid = Grid(matrix=self.screenArray)  # eto tut koroche delaet kartu
+        startPoint = grid.node(start[0], start[1])
+        finishPoint = grid.node(finish[0], finish[1])
+        finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
+        self.map.localPath, run = finder.find_path(startPoint, finishPoint, grid)
+        print(self.map.localPath)
+        self.map.update()
     def makeGradTunnel(self):
 
         neighbour = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]
@@ -199,7 +239,7 @@ class MapWidget(QWidget):
         tunnelWidth = 10
         weight = 20
         weightStep = int((255-weight)/tunnelWidth)
-        weightStep = 2
+        weightStep = 5   # В настройки
         # сюда цикл на сколько то фигнь
         for iter in range(tunnelWidth):
             for i in gridArray:
