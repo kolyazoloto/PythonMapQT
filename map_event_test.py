@@ -110,6 +110,8 @@ class MapWidget(QWidget):
         hbox = QHBoxLayout()
         hbox.addWidget(self.leftGroupBox,stretch=100)
         hbox.addWidget(self.rightGroupBox,stretch=20)
+        print(len(self.map.mapArray))
+        print(len(self.map.mapArray[0]))
         self.setLayout(hbox)
         self.show()
         self.posewid.show()  ##########
