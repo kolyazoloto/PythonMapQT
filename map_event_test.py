@@ -28,12 +28,12 @@ class Map(QWidget):
 
     def mousePressEvent(self, QMouseEvent):
         self.mousePos = QMouseEvent.pos()
-        x = self.mousePos.x()
-        y = self.mousePos.y()
+        x_mouse = self.mousePos.x()
+        y_mouse = self.mousePos.y()
 
         ############################################
-        x /= self.rectangleWidth      # Находим нужный кубикя rjординаты
-        y /= self.rectangleHeight
+        x = x_mouse / self.rectangleWidth      # Находим нужный кубикя rjординаты
+        y = y_mouse / self.rectangleHeight
 
         x = int(np.floor(x))
         y = int(np.floor(y))
@@ -43,6 +43,7 @@ class Map(QWidget):
 
         self.listModel.appendRow(item)
         self.findPathArray.append([x,y])
+        #self.update(x_mouse-self.rectangleWidth,y_mouse-self.rectangleHeight,self.rectangleWidth*2,self.rectangleHeight*2)
         self.update()
         print(self.findPathArray)
     def paintEvent(self, event):
@@ -66,34 +67,42 @@ class Map(QWidget):
         start = 0
         startPoint = [0,0]
 
+
         for k in range(self.colomn_items):
             for i in range(self.row_items):          #Рисуем прямоугольники                if array[k][i] == 0:
+                '''if array[k][i] == 1:
+                    startPoint[0] += self.rectangleWidth
+                    continue   # если 1 сразу прерываем'''
                 if array[k][i] == 0:
                     qp.setBrush(QColor(0,0,0))
                     qp.setPen(QColor(0,0,0))
+                    qp.drawRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight)
                 if array[k][i] > 1:
                     weight = array[k][i]
                     qp.setBrush(QColor(255,255-weight,255-weight))
                     qp.setPen(QColor(255,255-weight,255-weight))
-                if (i,k) in self.totalPath:
-                    qp.setBrush(QColor(0, 0, 255))
-                    qp.setPen(QColor(0, 0, 255))
-                if [i,k] in self.findPathArray:
-                    qp.setBrush(QColor(255, 0, 0))
-                    qp.setPen(QColor(255, 0, 0))
-                if (i,k) in self.localPath:
-                    qp.setBrush(QColor(255, 255, 0))
-                    qp.setPen(QColor(255, 255, 0))
-                if [i,k] == self.pose:
-                    qp.setBrush(QColor(0, 255, 0))
-                    qp.setPen(QColor(0, 0, 0))
-                if array[k][i] != 1 or (i,k) in self.totalPath or [i,k] == self.pose or [i,k] in self.findPathArray\
-                        or (i,k) in self.localPath: # Условие в каком случае строим кубик
-                    qp.drawRect(startPoint[0],startPoint[1],self.rectangleWidth, self.rectangleHeight)
+                    qp.drawRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight)
                 startPoint[0] += self.rectangleWidth
 
             startPoint[0] = start               #Обнуляем координату ряда
             startPoint[1] += self.rectangleHeight    #Увеличиваем координату высоты
+
+            ### Отображение из массивов
+            for i in self.totalPath:  # Рисуем массив пути
+                qp.setBrush(QColor(0, 0, 255))
+                qp.setPen(QColor(0, 0, 255))
+                qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
+                            self.rectangleHeight)
+            for i in self.findPathArray:  # Рисуем точки
+                qp.setBrush(QColor(255, 0, 0))
+                qp.setPen(QColor(255, 0, 0))
+                qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
+                            self.rectangleHeight)
+
+            qp.setBrush(QColor(0, 255, 0))  # Отображение точки нахождения
+            qp.setPen(QColor(0, 0, 0))
+            qp.drawRect(self.rectangleWidth * self.pose[0], self.rectangleHeight * self.pose[1], self.rectangleWidth,
+                        self.rectangleHeight)
 
 class MapWidget(QWidget):
     def __init__(self,massive):
@@ -238,7 +247,7 @@ class MapWidget(QWidget):
         visitedArray = []
         border = []
 
-        tunnelWidth = 10
+        tunnelWidth = 5
         weight = 20
         weightStep = int((255-weight)/tunnelWidth)
         weightStep = 5   # В настройки
