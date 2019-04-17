@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys,numpy as np
-from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QTextEdit
+from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QTextEdit,QMainWindow
 from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem
+from PyQt5.QtCore import QThread, pyqtSignal
 from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.finder.a_star import AStarFinder
@@ -105,6 +106,7 @@ class Map(QWidget):
                     self.rectangleHeight)
 
 class MapWidget(QWidget):
+
     def __init__(self,massive):
         super().__init__()
         self.screenArray = massive.copy() # Используем для отображения
@@ -212,20 +214,18 @@ class MapWidget(QWidget):
         self.map.totalPath.clear()
         self.map.update()
 
-    def findPath(self):    # Должна быть в Росе
-        if len(self.map.findPathArray) >= 1:
-            self.map.findPathArray.insert(0,self.map.pose)
-            while len(self.map.findPathArray) > 1:
-                grid = Grid(matrix=self.screenArray)  # eto tut koroche delaet kartu
-                startPoint = grid.node(self.map.findPathArray[0][0], self.map.findPathArray[0][1])
-                finishPoint = grid.node(self.map.findPathArray[1][0], self.map.findPathArray[1][1])
-                finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
-                path, run = finder.find_path(startPoint, finishPoint, grid)
-                print(run)
-                self.map.findPathArray.pop(0)
-                self.map.listModel.removeRow(0)
-                self.map.totalPath.extend(path)
+    def findPath(self):    # Thread
+        def updateFindPath(path):
+            self.map.listModel.removeRow(0)
+            self.map.totalPath.extend(path)
             self.map.update()
+        def done():
+            print(self.map.totalPath)
+        self.findThread = FindPathThread(self.screenArray,self.map.findPathArray,self.map.pose)
+        self.findThread.findPathSignal.connect(updateFindPath)
+        self.findThread.finished.connect(done)
+        self.findThread.start()
+
 
     def recountPath(self,start,finish):    # Должна быть в Росе
         grid = Grid(matrix=self.screenArray)  # eto tut koroche delaet kartu
@@ -236,48 +236,103 @@ class MapWidget(QWidget):
         print(self.map.localPath)
         self.map.update()
     def makeGradTunnel(self):
+        def updateGradTunnel(border,width):
+            for i in border:
+                self.screenArray[i[0]][i[1]] = width
+            self.map.update()
+        def done():
+            print("Grad done")
+        self.gradThread = MakeGradThread(self.screenArray,self.map.totalPath)
+        self.gradThread.makeGradSignal.connect(updateGradTunnel)
+        self.gradThread.finished.connect(done)
+        self.gradThread.start()
 
-        neighbour = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]
-        gridArray = self.map.totalPath.copy()
+class FindPathThread(QThread):
+    findPathSignal = pyqtSignal(list)
+    def __init__(self,screenArray,findPathArray,pose):
+        super().__init__()
+        self.screenArray = screenArray
+        self.findPathArray = findPathArray
+        self.pose = pose
+    def __del__(self):
+        self.wait()
 
-        visitedArray = []
+    def _findPath(self,startPose,endPose):
+        grid = Grid(matrix=self.screenArray)  # eto tut koroche delaet kartu
+        startPoint = grid.node(startPose[0], startPose[1])
+        finishPoint = grid.node(endPose[0], endPose[1])
+        finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
+        path, run = finder.find_path(startPoint, finishPoint, grid)
+        return path, run
+
+    def run(self):
+        if len(self.findPathArray) >= 1:
+            self.findPathArray.insert(0, self.pose)
+            while len(self.findPathArray) > 1:
+                path, run = self._findPath(self.findPathArray[0],self.findPathArray[1])
+                self.findPathSignal.emit(path)
+                del(self.findPathArray[0])
+
+class MakeGradThread(QThread):
+    makeGradSignal = pyqtSignal(list,float)
+    def __init__(self,screenArray,totalPath):
+        super().__init__()
+        self.screenArray = screenArray
+        self.totalPath = totalPath
+        self.neighbour = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]
+        self.visitedArray = []
+        self.gridArray = totalPath.copy()
+
+    def __del__(self):
+        self.wait()
+
+    def _makeGrad(self,weight):
         border = []
+        for i in self.gridArray:
+            for elem in self.neighbour:
+                y = i[0] + elem[0]
+                x = i[1] + elem[1]  # все перепутано икс и игрик для машины и человека это разное
+                if x < 0 or y < 0 or x > (len(self.screenArray) - 1) or y > (
+                        len(self.screenArray[0]) - 1):  # смотрим уходим ли за границу
+                    continue
+                if self.screenArray[x][y] == 0:  # смотрим препятствия и путь
+                    continue
+                if [x, y] in self.visitedArray:  # смотрим посещали ли
+                    continue
+                if [x, y] in self.totalPath:  # смотрим посещали ли
+                    continue
+                border.append([x, y])
+                self.visitedArray.append([x, y])
+        self.gridArray.clear()
+        self.makeGradSignal.emit(border,weight)
+        for i in border:
+            self.gridArray.append(i[::-1])  # Нужно развернуть
+    def run(self):
 
         tunnelWidth = 5
         weight = 20
-        weightStep = int((255-weight)/tunnelWidth)
-        weightStep = 5   # В настройки
+        #weightStep = int((255 - weight) / tunnelWidth)
+        weightStep = 30  # В настройки
         # сюда цикл на сколько то фигнь
         for iter in range(tunnelWidth):
-            for i in gridArray:
-                for elem in neighbour:
-                    y = i[0] + elem[0]
-                    x = i[1] + elem[1]  # все перепутано икс и игрик для машины и человека это разное
-                    if x < 0 or y < 0 or x>(len(self.screenArray)-1) or y>(len(self.screenArray[0])-1):  # смотрим уходим ли за границу
-                        continue
-                    if self.screenArray[x][y] == 0: #смотрим препятствия и путь
-                        continue
-                    if [x,y] in visitedArray:     #смотрим посещали ли
-                        continue
-                    if [x,y] in self.map.totalPath:     #смотрим посещали ли
-                        continue
-                    border.append([x,y])
-                    visitedArray.append([x,y])
-            for elem in border:        # раздаем веса
-                x = elem[0]
-                y = elem[1]
-                if iter == tunnelWidth-1:  # В последний раз ставим границу
-                    self.screenArray[x][y] = 0  # добавил только для отображения
-                else:
-                    self.screenArray[x][y] = weight  # добавил только для отображения
-            # Повторяю все напутано x и y почему то печаются на экран и в терминал по разному. Координаты границ инвертированы поэтому меняю. НАДО ПЕРЕДЕЛАТЬ
-            gridArray.clear()
+            self._makeGrad(weight)
             weight += weightStep
-            for i in border:
-                gridArray.append(i[::-1])  # Нужно развернуть
-            border.clear()
-            ################
-        self.map.update()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
