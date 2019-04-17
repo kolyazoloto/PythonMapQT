@@ -87,22 +87,22 @@ class Map(QWidget):
             startPoint[0] = start               #Обнуляем координату ряда
             startPoint[1] += self.rectangleHeight    #Увеличиваем координату высоты
 
-            ### Отображение из массивов
-            for i in self.totalPath:  # Рисуем массив пути
-                qp.setBrush(QColor(0, 0, 255))
-                qp.setPen(QColor(0, 0, 255))
-                qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
-                            self.rectangleHeight)
-            for i in self.findPathArray:  # Рисуем точки
-                qp.setBrush(QColor(255, 0, 0))
-                qp.setPen(QColor(255, 0, 0))
-                qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
-                            self.rectangleHeight)
-
-            qp.setBrush(QColor(0, 255, 0))  # Отображение точки нахождения
-            qp.setPen(QColor(0, 0, 0))
-            qp.drawRect(self.rectangleWidth * self.pose[0], self.rectangleHeight * self.pose[1], self.rectangleWidth,
+        ### Отображение из массивов
+        for i in self.totalPath:  # Рисуем массив пути
+            qp.setBrush(QColor(0, 0, 255))
+            qp.setPen(QColor(0, 0, 255))
+            qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
                         self.rectangleHeight)
+        for i in self.findPathArray:  # Рисуем точки
+            qp.setBrush(QColor(255, 0, 0))
+            qp.setPen(QColor(255, 0, 0))
+            qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
+                        self.rectangleHeight)
+
+        qp.setBrush(QColor(0, 255, 0))  # Отображение точки нахождения
+        qp.setPen(QColor(0, 0, 0))
+        qp.drawRect(self.rectangleWidth * self.pose[0], self.rectangleHeight * self.pose[1], self.rectangleWidth,
+                    self.rectangleHeight)
 
 class MapWidget(QWidget):
     def __init__(self,massive):
@@ -214,7 +214,6 @@ class MapWidget(QWidget):
 
     def findPath(self):    # Должна быть в Росе
         if len(self.map.findPathArray) >= 1:
-
             self.map.findPathArray.insert(0,self.map.pose)
             while len(self.map.findPathArray) > 1:
                 grid = Grid(matrix=self.screenArray)  # eto tut koroche delaet kartu
@@ -223,9 +222,6 @@ class MapWidget(QWidget):
                 finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
                 path, run = finder.find_path(startPoint, finishPoint, grid)
                 print(run)
-                #int_mapmap[startPoint[0]][startPoint[1]] = -2 #вносим старт так как не было       -2 - начало
-                #for elem in path:         #вносим в массив путь,финиш не берем      -3 - конец
-                #   self.screenArray[elem[1]][elem[0]] = -1   #  путь ..почему то столбики и стролбци наоборот
                 self.map.findPathArray.pop(0)
                 self.map.listModel.removeRow(0)
                 self.map.totalPath.extend(path)
