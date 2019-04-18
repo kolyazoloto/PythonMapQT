@@ -278,7 +278,7 @@ class MakeGradThread(QThread):
         super().__init__()
         self.screenArray = screenArray
         self.totalPath = totalPath
-        self.neighbour = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]
+
         self.visitedArray = []
         self.gridArray = totalPath.copy()
 
@@ -286,13 +286,35 @@ class MakeGradThread(QThread):
         self.wait()
 
     def _makeGrad(self,weight):
+        neighbours = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]
+        ## соседи для разных ситуаций
+        ud = [[-1, 0],[1, 0]]
+        rl = [[0, 1],[0, -1]]
+        ur = [[0,1],[-1,0],[-1,-1],[1,1]]
+        dr = [[0,1],[1,0],[1,1],[1,-1]]
+        ul = [[-1,0],[-1,1],[1,1],[0,-1]]
+        dl = [[1,0],[1,1],[0,-1],[-1,-1]]
+
         border = []
         width_len = len(self.screenArray) - 1
         height_len = len(self.screenArray[0]) - 1
-        for i in self.gridArray:
-            for elem in self.neighbour:
-                y = i[0] + elem[0]
-                x = i[1] + elem[1]  # все перепутано икс и игрик для машины и человека это разное
+        for i in range(len(self.gridArray)):
+            if self.gridArray[i] != self.gridArray[-1]:
+                now = self.gridArray[i]
+                next = self.gridArray[i+1]
+
+                if ((next[0] - now[0]) == -1 and (next[1] - now[1]) == 0) or \
+                        ((next[0] - now[0]) == 1 and (next[1] - now[1]) == 0):
+                    neighbours = rl
+                elif ((next[0] - now[0]) == 0 and (next[1] - now[1]) == -1) or \
+                        ((next[0] - now[0]) == 0 and (next[1] - now[1]) == 1):
+                    neighbours = ud
+                else:
+                    neighbours = []
+
+            for neighbour in neighbours:
+                y = self.gridArray[i][0] + neighbour[0]
+                x = self.gridArray[i][1] + neighbour[1]  # все перепутано икс и игрик для машины и человека это разное
                 if x < 0 or y < 0 or x > (width_len) or y > (height_len):  # смотрим уходим ли за границу
                     continue
                 if self.screenArray[x][y] == 0:  # смотрим препятствия и путь
@@ -301,18 +323,21 @@ class MakeGradThread(QThread):
                     continue
                 if [x, y] in self.totalPath:  # смотрим посещали ли
                     continue
+                print([x,y])
                 border.append([x, y])
                 self.visitedArray.append([x, y])
+        print(border)
         self.gridArray.clear()
         self.makeGradSignal.emit(border,weight)
         for i in border:
             self.gridArray.append(i[::-1])  # Нужно развернуть
+
     def run(self):
 
         tunnelWidth = 5
-        weight = 20
+        weight = 100
         #weightStep = int((255 - weight) / tunnelWidth)
-        weightStep = 30  # В настройки
+        weightStep = 5  # В настройки
         # сюда цикл на сколько то фигнь
         for iter in range(tunnelWidth):
             self._makeGrad(weight)
