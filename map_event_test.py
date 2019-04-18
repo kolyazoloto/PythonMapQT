@@ -315,9 +315,11 @@ class MakeGradThread(QThread):
         weightStep = 30  # В настройки
         # сюда цикл на сколько то фигнь
         for iter in range(tunnelWidth):
-            self._makeGrad(weight)
-            weight += weightStep
-
+            if iter != tunnelWidth-1:
+                self._makeGrad(weight)
+                weight += weightStep
+            else:
+                self._makeGrad(0)   # ставим ограждение
 
 
 
