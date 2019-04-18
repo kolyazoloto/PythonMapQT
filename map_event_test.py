@@ -220,7 +220,7 @@ class MapWidget(QWidget):
             self.map.totalPath.extend(path)
             self.map.update()
         def done():
-            print(self.map.totalPath)
+            print("find path DONE")
         self.findThread = FindPathThread(self.screenArray,self.map.findPathArray,self.map.pose)
         self.findThread.findPathSignal.connect(updateFindPath)
         self.findThread.finished.connect(done)
@@ -233,9 +233,8 @@ class MapWidget(QWidget):
         finishPoint = grid.node(finish[0], finish[1])
         finder = AStarFinder(diagonal_movement=DiagonalMovement.only_when_no_obstacle)
         self.map.localPath, run = finder.find_path(startPoint, finishPoint, grid)
-        print(self.map.localPath)
         self.map.update()
-    def makeGradTunnel(self):
+    def makeGradTunnel(self): #Thread
         def updateGradTunnel(border,width):
             for i in border:
                 self.screenArray[i[0]][i[1]] = width
@@ -288,12 +287,13 @@ class MakeGradThread(QThread):
 
     def _makeGrad(self,weight):
         border = []
+        width_len = len(self.screenArray) - 1
+        height_len = len(self.screenArray[0]) - 1
         for i in self.gridArray:
             for elem in self.neighbour:
                 y = i[0] + elem[0]
                 x = i[1] + elem[1]  # все перепутано икс и игрик для машины и человека это разное
-                if x < 0 or y < 0 or x > (len(self.screenArray) - 1) or y > (
-                        len(self.screenArray[0]) - 1):  # смотрим уходим ли за границу
+                if x < 0 or y < 0 or x > (width_len) or y > (height_len):  # смотрим уходим ли за границу
                     continue
                 if self.screenArray[x][y] == 0:  # смотрим препятствия и путь
                     continue
