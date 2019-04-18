@@ -290,10 +290,10 @@ class MakeGradThread(QThread):
         ## соседи для разных ситуаций
         ud = [[-1, 0],[1, 0]]
         rl = [[0, 1],[0, -1]]
-        ur = [[0,1],[-1,0],[-1,-1],[1,1]]
-        dr = [[0,1],[1,0],[1,1],[1,-1]]
-        ul = [[-1,0],[-1,1],[1,1],[0,-1]]
-        dl = [[1,0],[1,1],[0,-1],[-1,-1]]
+        dr = [[1,0],[0,1],[1,-1],[-1,1]]
+        ur = [[1,0],[1,1],[-1,-1],[0,-1]]
+        dl = [[-1,-1],[-1,0],[0,1],[1,1]]
+        ul = [[0,-1],[1,-1],[-1,0],[-1,1]]
 
         border = []
         width_len = len(self.screenArray) - 1
@@ -309,8 +309,14 @@ class MakeGradThread(QThread):
                 elif ((next[0] - now[0]) == 0 and (next[1] - now[1]) == -1) or \
                         ((next[0] - now[0]) == 0 and (next[1] - now[1]) == 1):
                     neighbours = ud
-                else:
-                    neighbours = []
+                elif ((next[0] - now[0]) == 1 and (next[1] - now[1]) == 1):
+                    neighbours = dr
+                elif ((next[0] - now[0]) == 1 and (next[1] - now[1]) == -1):
+                    neighbours = ur
+                elif ((next[0] - now[0]) == -1 and (next[1] - now[1]) == 1):
+                    neighbours = dl
+                elif ((next[0] - now[0]) == -1 and (next[1] - now[1]) == -1):
+                    neighbours = ul
 
             for neighbour in neighbours:
                 y = self.gridArray[i][0] + neighbour[0]
@@ -330,14 +336,14 @@ class MakeGradThread(QThread):
         self.gridArray.clear()
         self.makeGradSignal.emit(border,weight)
         for i in border:
-            self.gridArray.append(i[::-1])  # Нужно развернуть
+            self.gridArray.append(i)  # Нужно развернуть
 
     def run(self):
 
         tunnelWidth = 5
-        weight = 100
+        weight = 10
         #weightStep = int((255 - weight) / tunnelWidth)
-        weightStep = 5  # В настройки
+        weightStep = 20 # В настройки
         # сюда цикл на сколько то фигнь
         for iter in range(tunnelWidth):
             self._makeGrad(weight)
