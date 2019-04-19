@@ -112,9 +112,9 @@ class MapWidget(QWidget):
         self.screenArray = massive.copy() # Используем для отображения
         self.map = Map(self.screenArray,coord)
         self.initUI()
-        self.resize(800,800)
+        self.resize(900,900) # для перерасчета размеров с учетом отношения сторон
     def initUI(self):
-        self.setGeometry(300,300,1300,1000)
+        self.setGeometry(300,300,800,800)
         self.poseWID() ################
         self.rightSide()
         self.leftSide()
@@ -128,19 +128,19 @@ class MapWidget(QWidget):
         self.show()
         self.posewid.show()  ##########
     def resizeEvent(self, event):
-        #QResizeEvent(event)
+        mapWidth = self.width() - self.rightGroupBox.width()-30 # края плюс виджеты соседние
+        mapHeight = self.height()- 22 # тоже края плюс соседние виджеты
 
-        print(self.map.relation)
-        widgetWidth = self.width() - self.rightGroupBox.width()-30
-        widgetHeight = self.height()- 22
-
-        kolya = widgetWidth / self.map.relation
-        if kolya < self.height():
-            widgetHeight = kolya
-
+        widthSRAV = mapWidth / self.map.relation # вычислино для сравнения
+        if widthSRAV < self.height():
+            mapHeight = widthSRAV
         else:
-            widgetWidth = widgetHeight * self.map.relation
-        self.leftGroupBox.setGeometry(10, 11, widgetWidth, widgetHeight)
+            mapWidth = mapHeight * self.map.relation
+        #Находим центры в виджете группы
+        heightCenter = (self.height() / 2) - (mapHeight / 2) # Короче находим чентер всего и центер карты потом вычитаем и находим координаты
+        widthCenter = ((self.width() - self.rightGroupBox.width()) / 2) - (mapWidth / 2) # Даем размер так же как выше только тут виджет с боку поэтому вычитаем его размеры
+
+        self.leftGroupBox.setGeometry(widthCenter, heightCenter, mapWidth, mapHeight)
     def poseWID(self):
         def update_pose():
             y = int(self.pose_x_lineEdit.text())
