@@ -24,7 +24,6 @@ if __name__ == '__main__':
     f = open('/home/nikolay/Рабочий стол/2 ISTU_Digital_1,0_Digital_5,0_coord.txt', 'r')
     coord = f.readlines()
     coord = [i.split() for i in coord]
-    print (len(coord))
     f.close()
     print(coord)
     '''int_mapmap = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -38,5 +37,5 @@ if __name__ == '__main__':
                 [0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
                 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]'''
     app = QApplication(sys.argv)
-    ex = map_event_test.MapWidget(int_mapmap)
+    ex = map_event_test.MapWidget(int_mapmap,coord)
     sys.exit(app.exec_())

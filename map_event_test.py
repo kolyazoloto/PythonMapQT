@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys,numpy as np,utm
-from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QTextEdit,QMainWindow
-from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem
+from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,\
+    QTextEdit,QSizePolicy
+from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem,QResizeEvent
 from PyQt5.QtCore import QThread, pyqtSignal
 from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
@@ -13,10 +14,14 @@ from pathfinding.finder.dijkstra import DijkstraFinder
 
 class Map(QWidget):
 
-    def __init__(self,array):
+    def __init__(self,array,coord):
         super().__init__()
         self.mapArray = array
-        self.totalPath = []         #Глобальный путь
+        self.coord = coord
+        self.row_items = len(array[0])
+        self.colomn_items = len(array)
+        self.relation = self.row_items / self.colomn_items
+        self.totalPath = []        #Глобальный путь
         self.localPath = []
         self.findPathArray = []
         self.pose = [25,25]
@@ -61,8 +66,6 @@ class Map(QWidget):
 
         array = self.mapArray
         size = self.size()
-        self.row_items = len(array[0])   #Длина ряда
-        self.colomn_items = len(array)   #Длина колонны
         self.rectangleWidth = (size.width())/self.row_items
         self.rectangleHeight = (size.height())/self.colomn_items
         start = 0
@@ -104,11 +107,12 @@ class Map(QWidget):
 
 class MapWidget(QWidget):
 
-    def __init__(self,massive):
+    def __init__(self,massive,coord):
         super().__init__()
         self.screenArray = massive.copy() # Используем для отображения
-        self.map = Map(self.screenArray)
+        self.map = Map(self.screenArray,coord)
         self.initUI()
+        self.resize(800,800)
     def initUI(self):
         self.setGeometry(300,300,1300,1000)
         self.poseWID() ################
@@ -118,11 +122,25 @@ class MapWidget(QWidget):
         hbox = QHBoxLayout()
         hbox.addWidget(self.leftGroupBox,stretch=100)
         hbox.addWidget(self.rightGroupBox,stretch=20)
-        print(len(self.map.mapArray))
-        print(len(self.map.mapArray[0]))
+        print(self.map.row_items)
+        print(self.map.colomn_items)
         self.setLayout(hbox)
         self.show()
         self.posewid.show()  ##########
+    def resizeEvent(self, event):
+        #QResizeEvent(event)
+
+        print(self.map.relation)
+        widgetWidth = self.width() - self.rightGroupBox.width()-30
+        widgetHeight = self.height()- 22
+
+        kolya = widgetWidth / self.map.relation
+        if kolya < self.height():
+            widgetHeight = kolya
+
+        else:
+            widgetWidth = widgetHeight * self.map.relation
+        self.leftGroupBox.setGeometry(10, 11, widgetWidth, widgetHeight)
     def poseWID(self):
         def update_pose():
             y = int(self.pose_x_lineEdit.text())
@@ -199,11 +217,15 @@ class MapWidget(QWidget):
         vbox.addWidget(self.buttonTestGrad, stretch=50)
         self.rightGroupBox = QGroupBox()
         self.rightGroupBox.setLayout(vbox)
+
+
+        #print(self.width())
     def leftSide(self):
         vbox = QVBoxLayout()
         vbox.addWidget(self.map)
         self.leftGroupBox = QGroupBox()
-        #self.leftGroupBox.set
+        print(self.leftGroupBox.size())
+
         self.leftGroupBox.setLayout(vbox)
     def clearPathArrayCallback(self):
         self.map.findPathArray.clear()
