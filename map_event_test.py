@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import sys,numpy as np
+import sys,numpy as np,utm
 from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QTextEdit,QMainWindow
 from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -23,8 +23,8 @@ class Map(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(300, 300, 1000, 1000)
-        self.setWindowTitle('Draw MAP')
+        #self.setGeometry(300, 300, 1000, 1000)
+        #self.setWindowTitle('Draw MAP')
         self.listModel = QStandardItemModel()
 
     def mousePressEvent(self, QMouseEvent):
@@ -71,9 +71,6 @@ class Map(QWidget):
 
         for k in range(self.colomn_items):
             for i in range(self.row_items):          #Рисуем прямоугольники                if array[k][i] == 0:
-                '''if array[k][i] == 1:
-                    startPoint[0] += self.rectangleWidth
-                    continue   # если 1 сразу прерываем'''
                 if array[k][i] == 0:
                     qp.setBrush(QColor(0,0,0))
                     qp.setPen(QColor(0,0,0))
@@ -133,25 +130,24 @@ class MapWidget(QWidget):
             recountLength = 10    # В настройки
             prev_pose = self.map.pose
             self.map.pose = [x, y]
-            print(self.map.pose)
-            print(self.map.totalPath)
-            if (x, y) not in self.map.totalPath:    # Если мы не на пути включаем перерасчет
-                # включить перерасчет
-                ######################
-                print("ПЕРЕРАСЧЕТ")
-                self.recountPath(self.map.pose,self.map.totalPath[recountLength])  # переделать в возвращение функции
-                del(self.map.totalPath[:recountLength])    # удаляем из глобального пути все точки до N
-                self.map.totalPath = self.map.localPath + self.map.totalPath
-                self.map.localPath.clear()
-                ######################'''
-            if (x,y) in self.map.totalPath:
-                #определяем где мы в пути
-                ######################
-                print("НА ПУТИ")
-                del(self.map.totalPath[:self.map.totalPath.index((x,y))])  # Удаляем все элементы в массиве до нашего
-                #self.recountPath(self.map.pose,self.map.totalPath[10])
-                ######################'''
-            if self.map.pose != prev_pose:
+            if len(self.map.totalPath) != 0:   # Проверяем есть ли в точках пути значения
+                if (x, y) not in self.map.totalPath:    # Если мы не на пути включаем перерасчет
+                    # включить перерасчет
+                    ######################
+                    print("ПЕРЕРАСЧЕТ")
+                    self.recountPath(self.map.pose,self.map.totalPath[recountLength])  # переделать в возвращение функции
+                    del(self.map.totalPath[:recountLength])    # удаляем из глобального пути все точки до N
+                    self.map.totalPath = self.map.localPath + self.map.totalPath
+                    self.map.localPath.clear()
+                    ######################'''
+                elif (x,y) in self.map.totalPath:
+                    #определяем где мы в пути
+                    ######################
+                    print("НА ПУТИ")
+                    del(self.map.totalPath[:self.map.totalPath.index((x,y))])  # Удаляем все элементы в массиве до нашего
+                    #self.recountPath(self.map.pose,self.map.totalPath[10])
+                    ######################'''
+            if self.map.pose != prev_pose:   # Не будет работать так как там всякие тысячные части
                 self.map.update()
 
 
@@ -207,6 +203,7 @@ class MapWidget(QWidget):
         vbox = QVBoxLayout()
         vbox.addWidget(self.map)
         self.leftGroupBox = QGroupBox()
+        #self.leftGroupBox.set
         self.leftGroupBox.setLayout(vbox)
     def clearPathArrayCallback(self):
         self.map.findPathArray.clear()
