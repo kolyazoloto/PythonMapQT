@@ -2,9 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys,numpy as np,utm
-from PyQt5.QtWidgets import QWidget, QApplication,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,\
-    QTextEdit,QSizePolicy
-from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem,QResizeEvent
+from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit
+from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem
 from PyQt5.QtCore import QThread, pyqtSignal
 from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
@@ -17,9 +16,10 @@ class Map(QWidget):
     def __init__(self,array,coord):
         super().__init__()
         self.mapArray = array
-        self.coord = coord
+        self.coordArray = coord
         self.row_items = len(array[0])
         self.colomn_items = len(array)
+        self.mapScale = 5
         self.relation = self.row_items / self.colomn_items
         self.totalPath = []        #Глобальный путь
         self.localPath = []
@@ -141,10 +141,26 @@ class MapWidget(QWidget):
         widthCenter = ((self.width() - self.rightGroupBox.width()) / 2) - (mapWidth / 2) # Даем размер так же как выше только тут виджет с боку поэтому вычитаем его размеры
 
         self.leftGroupBox.setGeometry(widthCenter, heightCenter, mapWidth, mapHeight)
+    def bindingСoord(self,x,y):
+        for index, cord in enumerate(self.map.coordArray):
+            if float(cord[0])-(self.map.mapScale/2) < x < float(cord[0])+(self.map.mapScale/2):
+                x_index = index  # Находим индекс
+
+        for index, cord in enumerate(self.map.coordArray):
+            if float(cord[1])-(self.map.mapScale/2) < y < float(cord[1])+(self.map.mapScale/2):
+                y_index = index  # Находим индекс
+        # Сделать проверку в нашу входят значения или нет
+        return x_index,y_index
+
     def poseWID(self):
         def update_pose():
-            y = int(self.pose_x_lineEdit.text())
-            x = int(self.pose_y_lineEdit.text())
+            a = float(self.pose_x_lineEdit.text())
+            b = float(self.pose_y_lineEdit.text())
+            lat = utm.from_latlon(a,b)
+            print(lat)
+            x,y = self.bindingCoord(lat[0],lat[1])
+            print([x,y])
+
             recountLength = 10    # В настройки
             prev_pose = self.map.pose
             self.map.pose = [x, y]
@@ -224,8 +240,6 @@ class MapWidget(QWidget):
         vbox = QVBoxLayout()
         vbox.addWidget(self.map)
         self.leftGroupBox = QGroupBox()
-        print(self.leftGroupBox.size())
-
         self.leftGroupBox.setLayout(vbox)
     def clearPathArrayCallback(self):
         self.map.findPathArray.clear()
@@ -239,9 +253,13 @@ class MapWidget(QWidget):
             self.map.totalPath.extend(path)
             self.map.update()
         def done():
+            self.buttonFindPath.setEnabled(1)
             print("find path DONE")
+        def disButt():
+            self.buttonFindPath.setDisabled(1)
         self.findThread = FindPathThread(self.screenArray,self.map.findPathArray,self.map.pose)
         self.findThread.findPathSignal.connect(updateFindPath)
+        self.findThread.started.connect(disButt)
         self.findThread.finished.connect(done)
         self.findThread.start()
 
@@ -259,9 +277,13 @@ class MapWidget(QWidget):
                 self.screenArray[i[0]][i[1]] = width
             self.map.update()
         def done():
+            self.buttonTestGrad.setEnabled(1)
             print("Grad done")
+        def disButt():
+            self.buttonTestGrad.setDisabled(1)
         self.gradThread = MakeGradThread(self.screenArray,self.map.totalPath)
         self.gradThread.makeGradSignal.connect(updateGradTunnel)
+        self.gradThread.started.connect(disButt)
         self.gradThread.finished.connect(done)
         self.gradThread.start()
 
