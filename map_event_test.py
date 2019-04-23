@@ -24,6 +24,7 @@ class Map(QWidget):
         self.totalPath = []        #Глобальный путь
         self.localPath = []
         self.findPathArray = []
+        self.utmPose = []
         self.pose = [25,25]
         self.initUI()
 
@@ -113,6 +114,7 @@ class MapWidget(QWidget):
         self.map = Map(self.screenArray,coord)
         self.initUI()
         self.resize(900,900) # для перерасчета размеров с учетом отношения сторон
+
     def initUI(self):
         self.setGeometry(300,300,800,800)
         self.poseWID() ################
@@ -139,7 +141,6 @@ class MapWidget(QWidget):
         #Находим центры в виджете группы
         heightCenter = (self.height() / 2) - (mapHeight / 2) # Короче находим чентер всего и центер карты потом вычитаем и находим координаты
         widthCenter = ((self.width() - self.rightGroupBox.width()) / 2) - (mapWidth / 2) # Даем размер так же как выше только тут виджет с боку поэтому вычитаем его размеры
-
         self.leftGroupBox.setGeometry(widthCenter, heightCenter, mapWidth, mapHeight)
     def bindingСoord(self,x,y):
         for index, cord in enumerate(self.map.coordArray):
@@ -151,19 +152,32 @@ class MapWidget(QWidget):
                 y_index = index  # Находим индекс
         # Сделать проверку в нашу входят значения или нет
         return x_index,y_index
+    def courseCalculation(self):
+        a = self.map.utmPose
+        b = self.map.totalPath[2] # точка на рассчитанном пути к которой будем стороить курс координаты массивные
+        b = [int(self.map.coordArray[b[0]][0]),int(self.map.coordArray[b[1]][1])] # взять из массива координат координату для нашей клетки
+
+        ab = [b[0] - a[0], b[1] - a[1]]  # Определяем координаты вектора
+        vecLength = np.sqrt(ab[0]**2 + ab[1]**2) # длина вектора
+        katetLength = ab[1]
+        course = (np.arccos(katetLength/vecLength))*180/np.pi  # Находим курс и переводим в градусы
+        if ab[0] < 0:
+            course *= -1
+        print(course)
+        return course
 
     def poseWID(self):
         def update_pose():
             a = float(self.pose_x_lineEdit.text())
             b = float(self.pose_y_lineEdit.text())
-            lat = utm.from_latlon(a,b)
-            print(lat)
-            x,y = self.bindingCoord(lat[0],lat[1])
-            print([x,y])
+            utm_cord = utm.from_latlon(a,b)
+            print(utm_cord)
+            x,y = self.bindingСoord(utm_cord[0],utm_cord[1])
 
             recountLength = 10    # В настройки
             prev_pose = self.map.pose
-            self.map.pose = [x, y]
+            self.map.pose = [x, y]   # заносим координаты клетки в память
+            self.map.utmPose = [utm_cord[0], utm_cord[1]] # заносим координаты utm в память
             if len(self.map.totalPath) != 0:   # Проверяем есть ли в точках пути значения
                 if (x, y) not in self.map.totalPath:    # Если мы не на пути включаем перерасчет
                     # включить перерасчет
@@ -181,7 +195,7 @@ class MapWidget(QWidget):
                     del(self.map.totalPath[:self.map.totalPath.index((x,y))])  # Удаляем все элементы в массиве до нашего
                     #self.recountPath(self.map.pose,self.map.totalPath[10])
                     ######################'''
-            if self.map.pose != prev_pose:   # Не будет работать так как там всякие тысячные части
+            if self.map.pose != prev_pose:   # Обновляем экран только в случае изменения координаты
                 self.map.update()
 
 
@@ -205,7 +219,6 @@ class MapWidget(QWidget):
         vbox = QVBoxLayout(self.posewid)
         vbox.addWidget(lineedit_wid)
         vbox.addWidget(self.button_apply_pose)
-
     def rightSide(self):
         #self.buttonRun = QPushButton()
         #self.buttonRun.setText("ПОИХАЛI")
@@ -233,9 +246,6 @@ class MapWidget(QWidget):
         vbox.addWidget(self.buttonTestGrad, stretch=50)
         self.rightGroupBox = QGroupBox()
         self.rightGroupBox.setLayout(vbox)
-
-
-        #print(self.width())
     def leftSide(self):
         vbox = QVBoxLayout()
         vbox.addWidget(self.map)
@@ -255,7 +265,11 @@ class MapWidget(QWidget):
         def done():
             self.buttonFindPath.setEnabled(1)
             print("find path DONE")
+            print(self.map.totalPath)
+            print(len(self.map.totalPath))
+            self.courseCalculation()
         def disButt():
+
             self.buttonFindPath.setDisabled(1)
         self.findThread = FindPathThread(self.screenArray,self.map.findPathArray,self.map.pose)
         self.findThread.findPathSignal.connect(updateFindPath)
