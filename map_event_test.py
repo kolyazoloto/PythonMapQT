@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import sys,numpy as np,utm
-from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit
-from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem
+from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QGridLayout,QLabel
+from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem,QDoubleValidator
 from PyQt5.QtCore import QThread, pyqtSignal
 from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
@@ -45,7 +45,7 @@ class Map(QWidget):
         x = int(np.floor(x))
         y = int(np.floor(y))
 
-        strItem = str(x)+','+str(y) #Делаем строку
+        strItem = "{0} {1}".format(x,y) #Делаем строку
         item = QStandardItem(strItem) # QItem
 
         self.listModel.appendRow(item)
@@ -118,6 +118,7 @@ class MapWidget(QWidget):
     def initUI(self):
         self.setGeometry(300,300,800,800)
         self.poseWID() ################
+        self.setPointWid()
         self.rightSide()
         self.leftSide()
 
@@ -154,7 +155,7 @@ class MapWidget(QWidget):
         return x_index,y_index
     def courseCalculation(self):
         a = self.map.utmPose
-        b = self.map.totalPath[2] # точка на рассчитанном пути к которой будем стороить курс координаты массивные
+        b = self.map.totalPath[-1] # точка на рассчитанном пути к которой будем стороить курс координаты массивные
         b = [int(self.map.coordArray[b[0]][0]),int(self.map.coordArray[b[1]][1])] # взять из массива координат координату для нашей клетки
 
         ab = [b[0] - a[0], b[1] - a[1]]  # Определяем координаты вектора
@@ -219,6 +220,41 @@ class MapWidget(QWidget):
         vbox = QVBoxLayout(self.posewid)
         vbox.addWidget(lineedit_wid)
         vbox.addWidget(self.button_apply_pose)
+    def setPointWid(self):
+
+        validator = QDoubleValidator()
+        latitude = QLineEdit()
+        latitude.setWindowTitle("Широта")
+        #latitude.setValidator(validator)
+        longitude = QLineEdit()
+        longitude.setWindowTitle("Долгота")
+        #longitude.setValidator(validator)
+
+        addPointButton = QPushButton()
+        addPointButton.setText("Добавить точку")
+
+        def addPointButtonCallback():
+            x = float(latitude.text())
+            y = float(longitude.text())
+            utm_coords= utm.from_latlon(x,y)
+
+            x,y = self.bindingСoord(utm_coords[0],utm_coords[1])
+            strItem = "{0} {1}".format(x,y)
+            item = QStandardItem(strItem)  # QItem
+            self.map.listModel.appendRow(item)
+            self.map.findPathArray.append([x,y])
+            self.map.update()
+
+        addPointButton.clicked.connect(addPointButtonCallback)
+
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(latitude)
+        vbox.addWidget(longitude)
+        vbox.addWidget(addPointButton)
+
+        self.setPointGroupBox = QGroupBox()
+        self.setPointGroupBox.setLayout(vbox)
     def rightSide(self):
         #self.buttonRun = QPushButton()
         #self.buttonRun.setText("ПОИХАЛI")
@@ -241,6 +277,7 @@ class MapWidget(QWidget):
         vbox = QVBoxLayout()
         vbox.addWidget(self.list,stretch=50)
         #vbox.addWidget(self.buttonRun, stretch=30)
+        vbox.addWidget(self.setPointGroupBox)
         vbox.addWidget(self.buttonFindPath,stretch=30)
         vbox.addWidget(self.buttonClearArray,stretch=30)
         vbox.addWidget(self.buttonTestGrad, stretch=50)
