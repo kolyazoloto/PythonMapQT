@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import sys,numpy as np,utm
-from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QGridLayout,QLabel
-from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem,QDoubleValidator
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QGridLayout,QLabel,QGraphicsScene,QGraphicsView
+from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem,QDoubleValidator,QImage,QPixmap
+from PyQt5.QtCore import QThread, pyqtSignal,QSize,Qt
 from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.finder.a_star import AStarFinder
-from pathfinding.finder.dijkstra import DijkstraFinder
-
 
 class Map(QWidget):
 
@@ -21,6 +19,7 @@ class Map(QWidget):
         self.colomn_items = len(array)
         self.mapScale = 5
         self.relation = self.row_items / self.colomn_items
+        self.make_image()
         self.totalPath = []        #Глобальный путь
         self.localPath = []
         self.findPathArray = []
@@ -30,29 +29,68 @@ class Map(QWidget):
 
     def initUI(self):
         #self.setGeometry(300, 300, 1000, 1000)
-        #self.setWindowTitle('Draw MAP')
+        #self.setWindowTitle
+
+        #imageView = QGraphicsView(self)
+        #scene = QGraphicsScene()
+        self.lab = QLabel(self)
+        self.Firstpixmap = QPixmap()
+        self.Firstpixmap.fromImage(self.image)
+        self.pixmap = QPixmap()
+
+        self.pixmap.scaled(self.Firstpixmap,self.width(),self.height(),Qt.KeepAspectRatio)
+        self.lab.setPixmap(self.pixmap)
         self.listModel = QStandardItemModel()
 
     def mousePressEvent(self, QMouseEvent):
         self.mousePos = QMouseEvent.pos()
         x_mouse = self.mousePos.x()
         y_mouse = self.mousePos.y()
-
         ############################################
-        x = x_mouse / self.rectangleWidth      # Находим нужный кубикя rjординаты
+        x = x_mouse / self.rectangleWidth      # Находим нужный кубикя координаты
         y = y_mouse / self.rectangleHeight
-
         x = int(np.floor(x))
         y = int(np.floor(y))
-
         strItem = "{0} {1}".format(x,y) #Делаем строку
         item = QStandardItem(strItem) # QItem
-
         self.listModel.appendRow(item)
         self.findPathArray.append([x,y])
-        #self.update(x_mouse-self.rectangleWidth,y_mouse-self.rectangleHeight,self.rectangleWidth*2,self.rectangleHeight*2)
         self.update()
         print(self.findPathArray)
+
+    def make_image(self):
+        print(self.width(),self.height())
+
+        im_width = 1500
+        im_height = 1500/self.relation
+
+        print(im_width,im_height)
+
+        self.image = QImage(QSize(im_width,im_height),QImage.Format_RGB32)
+        self.image.fill(Qt.white)
+        painter = QPainter(self.image)
+
+        array = self.mapArray
+        size = self.image.size()
+        self.rectangleWidth = (size.width())/self.row_items
+        self.rectangleHeight = (size.height())/self.colomn_items
+        start = 0
+        startPoint = [0,0]
+
+        for k in range(self.colomn_items):
+            for i in range(self.row_items):          #Рисуем прямоугольники                if array[k][i] == 0:
+                if array[k][i] == 0:
+                    #painter.fillRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight,Qt.black)
+                    painter.setBrush(QColor(0,0,0))
+                    painter.setPen(QColor(0,0,0))
+                    painter.drawRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight)
+                startPoint[0] += self.rectangleWidth
+
+            startPoint[0] = start               #Обнуляем координату ряда
+            startPoint[1] += self.rectangleHeight    #Увеличиваем координату высоты
+        #self.image.save("alo.png")
+        painter.end()
+
     def paintEvent(self, event):
 
         qp = QPainter()
@@ -69,25 +107,7 @@ class Map(QWidget):
         size = self.size()
         self.rectangleWidth = (size.width())/self.row_items
         self.rectangleHeight = (size.height())/self.colomn_items
-        start = 0
-        startPoint = [0,0]
-
-
-        for k in range(self.colomn_items):
-            for i in range(self.row_items):          #Рисуем прямоугольники                if array[k][i] == 0:
-                if array[k][i] == 0:
-                    qp.setBrush(QColor(0,0,0))
-                    qp.setPen(QColor(0,0,0))
-                    qp.drawRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight)
-                if array[k][i] > 1:
-                    weight = array[k][i]
-                    qp.setBrush(QColor(255,255-weight,255-weight))
-                    qp.setPen(QColor(255,255-weight,255-weight))
-                    qp.drawRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight)
-                startPoint[0] += self.rectangleWidth
-
-            startPoint[0] = start               #Обнуляем координату ряда
-            startPoint[1] += self.rectangleHeight    #Увеличиваем координату высоты
+     
 
         ### Отображение из массивов
         for i in self.totalPath:  # Рисуем массив пути
@@ -105,6 +125,7 @@ class Map(QWidget):
         qp.setPen(QColor(0, 0, 0))
         qp.drawRect(self.rectangleWidth * self.pose[0], self.rectangleHeight * self.pose[1], self.rectangleWidth,
                     self.rectangleHeight)
+
 
 class MapWidget(QWidget):
 
@@ -130,7 +151,7 @@ class MapWidget(QWidget):
         self.setLayout(hbox)
         self.show()
         self.posewid.show()  ##########
-    def resizeEvent(self, event):
+    '''def resizeEvent(self, event):
         mapWidth = self.width() - self.rightGroupBox.width()-30 # края плюс виджеты соседние
         mapHeight = self.height()- 22 # тоже края плюс соседние виджеты
 
@@ -142,7 +163,7 @@ class MapWidget(QWidget):
         #Находим центры в виджете группы
         heightCenter = (self.height() / 2) - (mapHeight / 2) # Короче находим чентер всего и центер карты потом вычитаем и находим координаты
         widthCenter = ((self.width() - self.rightGroupBox.width()) / 2) - (mapWidth / 2) # Даем размер так же как выше только тут виджет с боку поэтому вычитаем его размеры
-        self.leftGroupBox.setGeometry(widthCenter, heightCenter, mapWidth, mapHeight)
+        self.leftGroupBox.setGeometry(widthCenter, heightCenter, mapWidth, mapHeight)'''
     def bindingСoord(self,x,y):
         for index, cord in enumerate(self.map.coordArray):
             if float(cord[0])-(self.map.mapScale/2) < x < float(cord[0])+(self.map.mapScale/2):
@@ -256,9 +277,9 @@ class MapWidget(QWidget):
         self.setPointGroupBox = QGroupBox()
         self.setPointGroupBox.setLayout(vbox)
     def rightSide(self):
-        #self.buttonRun = QPushButton()
-        #self.buttonRun.setText("ПОИХАЛI")
-        #self.buttonRun.clicked.connect(pass)
+        self.buttonRun = QPushButton()
+        self.buttonRun.setText("ПОИХАЛI")
+        self.buttonRun.clicked.connect(self.map.make_image)
         ##
         self.buttonFindPath = QPushButton()
         self.buttonFindPath.setText("Find path")
@@ -276,7 +297,7 @@ class MapWidget(QWidget):
         self.list.setModel(self.map.listModel)
         vbox = QVBoxLayout()
         vbox.addWidget(self.list,stretch=50)
-        #vbox.addWidget(self.buttonRun, stretch=30)
+        vbox.addWidget(self.buttonRun, stretch=30)
         vbox.addWidget(self.setPointGroupBox)
         vbox.addWidget(self.buttonFindPath,stretch=30)
         vbox.addWidget(self.buttonClearArray,stretch=30)
