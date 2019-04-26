@@ -32,7 +32,7 @@ class Map(QWidget):
         self.colomn_items = len(array)
         self.mapScale = 5
         self.relation = self.row_items / self.colomn_items
-        self.make_image()   # Создаем фоновое изоюражение большого размера
+        self.firstImage = self.make_image()   # Создаем фоновое изоюражение большого размера
         self.totalPath = []        #Глобальный путь
         self.localPath = []
         self.findPathArray = []
@@ -54,7 +54,13 @@ class Map(QWidget):
         self.setLayout(vbox)
 
         self.listModel = QStandardItemModel()
-
+    def updateImage(self):
+        self.fonPixMap = QPixmap.fromImage(self.image)
+        self.scaledPixMap = self.fonPixMap.scaled(800,800,Qt.KeepAspectRatio)
+        self.scene.clear()
+        self.scene.addPixmap(self.scaledPixMap)
+        self.imageView.setScene(self.scene)
+        self.imageView.update()
     def mousePressEvent(self, QMouseEvent):
         x_mouse = self.scene.x_mouse
         y_mouse = self.scene.y_mouse
@@ -91,10 +97,15 @@ class Map(QWidget):
 
         for k in range(self.colomn_items):
             for i in range(self.row_items):          #Рисуем прямоугольники                if array[k][i] == 0:
-                if array[k][i] == 0:
+                if array[k][i] == 0:  # Цвета для препятствия
                     #painter.fillRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight,Qt.black)
                     painter.setBrush(QColor(0,0,0))
                     painter.setPen(QColor(0,0,0))
+                    painter.drawRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight)
+                if array[k][i] > 1:  # Цвета для весов
+                    #painter.fillRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight,Qt.black)
+                    painter.setBrush(QColor(255,255-array[k][i],255-array[k][i]))
+                    painter.setPen(QColor(255,255-array[k][i],255-array[k][i]))
                     painter.drawRect(startPoint[0], startPoint[1], self.rectangleWidth, self.rectangleHeight)
                 startPoint[0] += self.rectangleWidth
 
@@ -102,6 +113,7 @@ class Map(QWidget):
             startPoint[1] += self.rectangleHeight    #Увеличиваем координату высоты
         #self.image.save("alo.png")
         painter.end()
+        return self.image
     def paintEvent(self, event):
         array = self.mapArray
         size = self.scaledPixMap.size()
@@ -181,6 +193,7 @@ class MapWidget(QWidget):
 
             recountLength = 10    # В настройки
             prev_pose = self.map.pose
+            qrect = QRect(x,y,)
             self.map.pose = [x, y]   # заносим координаты клетки в память
             self.map.utmPose = [utm_cord[0], utm_cord[1]] # заносим координаты utm в память
             if len(self.map.totalPath) != 0:   # Проверяем есть ли в точках пути значения
@@ -366,6 +379,8 @@ class MapWidget(QWidget):
                 self.screenArray[i[0]][i[1]] = width
             self.map.update()
         def done():
+            self.map.make_image() # Так как карта
+            self.map.updateImage()
             self.buttonTestGrad.setEnabled(1)
             print("Grad done")
         def disButt():
