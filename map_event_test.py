@@ -2,14 +2,27 @@
 # -*- coding: utf-8 -*-
 
 import sys,numpy as np,utm
-from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QGridLayout,QLabel,QGraphicsScene,QGraphicsView
+from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QGroupBox,QPushButton,QListView,QLineEdit,QGridLayout,\
+    QLabel,QGraphicsScene,QGraphicsView,QSlider
 from PyQt5.QtGui import QPainter, QColor,QPen,QStandardItemModel,QStandardItem,QDoubleValidator,QImage,QPixmap
-from PyQt5.QtCore import QThread, pyqtSignal,QSize,Qt
+from PyQt5.QtCore import QThread, pyqtSignal,QSize,Qt,QRect
 from pathfinding.core.grid import Grid
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.finder.a_star import AStarFinder
 
+
+class MyQScene(QGraphicsScene):
+    def __init__(self):
+        super().__init__()
+
+    def mousePressEvent(self, event):
+        self.x_mouse = event.scenePos().x()
+        self.y_mouse = event.scenePos().y()
+        ############################################
+
+
 class Map(QWidget):
+
 
     def __init__(self,array,coord):
         super().__init__()
@@ -19,52 +32,51 @@ class Map(QWidget):
         self.colomn_items = len(array)
         self.mapScale = 5
         self.relation = self.row_items / self.colomn_items
-        self.make_image()
+        self.make_image()   # Создаем фоновое изоюражение большого размера
         self.totalPath = []        #Глобальный путь
         self.localPath = []
         self.findPathArray = []
         self.utmPose = []
-        self.pose = [25,25]
+        self.pose = [0,0]
         self.initUI()
 
     def initUI(self):
-        #self.setGeometry(300, 300, 1000, 1000)
-        #self.setWindowTitle
+        self.fonPixMap = QPixmap.fromImage(self.image)
+        self.scaledPixMap = self.fonPixMap.scaled(800,800,Qt.KeepAspectRatio)
+        self.imageView = QGraphicsView()
+        self.imageView.setGeometry(0,0,self.width(),self.height())
+        self.scene = MyQScene()
+        self.scene.addPixmap(self.scaledPixMap)
+        self.imageView.setScene(self.scene)
 
-        #imageView = QGraphicsView(self)
-        #scene = QGraphicsScene()
-        self.lab = QLabel(self)
-        self.Firstpixmap = QPixmap()
-        self.Firstpixmap.fromImage(self.image)
-        self.pixmap = QPixmap()
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.imageView)
+        self.setLayout(vbox)
 
-        self.pixmap.scaled(self.Firstpixmap,self.width(),self.height(),Qt.KeepAspectRatio)
-        self.lab.setPixmap(self.pixmap)
         self.listModel = QStandardItemModel()
 
     def mousePressEvent(self, QMouseEvent):
-        self.mousePos = QMouseEvent.pos()
-        x_mouse = self.mousePos.x()
-        y_mouse = self.mousePos.y()
+        x_mouse = self.scene.x_mouse
+        y_mouse = self.scene.y_mouse
         ############################################
         x = x_mouse / self.rectangleWidth      # Находим нужный кубикя координаты
         y = y_mouse / self.rectangleHeight
         x = int(np.floor(x))
         y = int(np.floor(y))
+        if x < 0 or y < 0:
+            return
         strItem = "{0} {1}".format(x,y) #Делаем строку
         item = QStandardItem(strItem) # QItem
         self.listModel.appendRow(item)
         self.findPathArray.append([x,y])
-        self.update()
+        self.imageView.repaint()
         print(self.findPathArray)
 
     def make_image(self):
-        print(self.width(),self.height())
+
 
         im_width = 1500
         im_height = 1500/self.relation
-
-        print(im_width,im_height)
 
         self.image = QImage(QSize(im_width,im_height),QImage.Format_RGB32)
         self.image.fill(Qt.white)
@@ -90,42 +102,25 @@ class Map(QWidget):
             startPoint[1] += self.rectangleHeight    #Увеличиваем координату высоты
         #self.image.save("alo.png")
         painter.end()
-
     def paintEvent(self, event):
-
-        qp = QPainter()
-        qp.begin(self)
-        self.drawRectangle(qp)
-        qp.end()
-
-    def drawRectangle(self,qp):
-        pen = QPen()
-        pen.setStyle(1)     #no lines
-        qp.setPen(pen)
-
         array = self.mapArray
-        size = self.size()
-        self.rectangleWidth = (size.width())/self.row_items
-        self.rectangleHeight = (size.height())/self.colomn_items
-     
+        size = self.scaledPixMap.size()
+        self.rectangleWidth = (size.width()) / self.row_items
+        self.rectangleHeight = (size.height()) / self.colomn_items
+
 
         ### Отображение из массивов
         for i in self.totalPath:  # Рисуем массив пути
-            qp.setBrush(QColor(0, 0, 255))
-            qp.setPen(QColor(0, 0, 255))
-            qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
-                        self.rectangleHeight)
+            self.scene.addRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
+                        self.rectangleHeight,Qt.blue,Qt.blue)
         for i in self.findPathArray:  # Рисуем точки
-            qp.setBrush(QColor(255, 0, 0))
-            qp.setPen(QColor(255, 0, 0))
-            qp.drawRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
-                        self.rectangleHeight)
 
-        qp.setBrush(QColor(0, 255, 0))  # Отображение точки нахождения
-        qp.setPen(QColor(0, 0, 0))
-        qp.drawRect(self.rectangleWidth * self.pose[0], self.rectangleHeight * self.pose[1], self.rectangleWidth,
-                    self.rectangleHeight)
+            self.scene.addRect(self.rectangleWidth * i[0], self.rectangleHeight * i[1], self.rectangleWidth,
+                        self.rectangleHeight,Qt.red,Qt.red)
 
+
+        self.scene.addRect(self.rectangleWidth * self.pose[0], self.rectangleHeight * self.pose[1], self.rectangleWidth,
+                    self.rectangleHeight,Qt.green,Qt.green)
 
 class MapWidget(QWidget):
 
@@ -151,19 +146,7 @@ class MapWidget(QWidget):
         self.setLayout(hbox)
         self.show()
         self.posewid.show()  ##########
-    '''def resizeEvent(self, event):
-        mapWidth = self.width() - self.rightGroupBox.width()-30 # края плюс виджеты соседние
-        mapHeight = self.height()- 22 # тоже края плюс соседние виджеты
 
-        widthSRAV = mapWidth / self.map.relation # вычислино для сравнения
-        if widthSRAV < self.height():
-            mapHeight = widthSRAV
-        else:
-            mapWidth = mapHeight * self.map.relation
-        #Находим центры в виджете группы
-        heightCenter = (self.height() / 2) - (mapHeight / 2) # Короче находим чентер всего и центер карты потом вычитаем и находим координаты
-        widthCenter = ((self.width() - self.rightGroupBox.width()) / 2) - (mapWidth / 2) # Даем размер так же как выше только тут виджет с боку поэтому вычитаем его размеры
-        self.leftGroupBox.setGeometry(widthCenter, heightCenter, mapWidth, mapHeight)'''
     def bindingСoord(self,x,y):
         for index, cord in enumerate(self.map.coordArray):
             if float(cord[0])-(self.map.mapScale/2) < x < float(cord[0])+(self.map.mapScale/2):
@@ -277,6 +260,25 @@ class MapWidget(QWidget):
         self.setPointGroupBox = QGroupBox()
         self.setPointGroupBox.setLayout(vbox)
     def rightSide(self):
+        def scaleImage():
+            print(self.map.scaledPixMap.size())
+            print(self.map.imageView.width(),self.map.imageView.height())
+            #print("\n")
+            value = self.scaleSlider.value()
+            self.map.scaledPixMap = self.map.fonPixMap.scaled(value,value, Qt.KeepAspectRatio)
+            self.map.scene.clear()
+            self.map.imageView.setScene(self.map.scene)
+            self.map.scene.addPixmap(self.map.scaledPixMap)
+            self.map.imageView.update()
+        def finishScaleImage():
+            value = self.scaleSlider.value()
+            self.map.scene = MyQScene()
+            self.map.scaledPixMap = self.map.fonPixMap.scaled(value,value, Qt.KeepAspectRatio)
+            self.map.scene.clear()
+            self.map.imageView.setScene(self.map.scene)
+            #self.map.scene.update()
+            self.map.scene.addPixmap(self.map.scaledPixMap)
+            self.map.imageView.update()
         self.buttonRun = QPushButton()
         self.buttonRun.setText("ПОИХАЛI")
         self.buttonRun.clicked.connect(self.map.make_image)
@@ -295,9 +297,19 @@ class MapWidget(QWidget):
         ##
         self.list = QListView()
         self.list.setModel(self.map.listModel)
+        ##
+        self.scaleSlider = QSlider(Qt.Horizontal)
+        self.scaleSlider.setMinimum(100)
+        startScale = self.map.image.width()
+        self.scaleSlider.setMaximum(startScale+2000)
+        self.scaleSlider.setValue(startScale)
+        self.scaleSlider.valueChanged.connect(scaleImage)
+        self.scaleSlider.sliderReleased.connect(finishScaleImage)
+        ##
         vbox = QVBoxLayout()
         vbox.addWidget(self.list,stretch=50)
         vbox.addWidget(self.buttonRun, stretch=30)
+        vbox.addWidget(self.scaleSlider)
         vbox.addWidget(self.setPointGroupBox)
         vbox.addWidget(self.buttonFindPath,stretch=30)
         vbox.addWidget(self.buttonClearArray,stretch=30)
@@ -313,7 +325,12 @@ class MapWidget(QWidget):
         self.map.findPathArray.clear()
         self.map.listModel.clear()
         self.map.totalPath.clear()
-        self.map.update()
+        ###########   Только обновляем сцены
+        self.map.scene.clear()
+        self.map.scene.addPixmap(self.map.scaledPixMap)
+        self.map.imageView.update()
+        ###########
+
 
     def findPath(self):    # Thread
         def updateFindPath(path):
